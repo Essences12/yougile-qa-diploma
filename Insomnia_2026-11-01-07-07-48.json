@@ -1,0 +1,421 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: YouGile QA Diploma
+meta:
+  id: wrk_431bdd206f1b4ed6aa9b72ec05bafbd4
+  created: 1793458044363
+  modified: 1793458044363
+  description: ""
+collection:
+  - url: "{{ base_url }}/tasks"
+    name: Создание задания
+    meta:
+      id: req_7a3abfe76b7f4797819e37aa01a474d8
+      created: 1793460427516
+      modified: 1793460869067
+      isPrivate: false
+      description: ""
+      sortKey: -1793460427516
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+          "title": "QA Test Task",
+          "columnId": "501117ff-df77-4c79-a974-2ffd1bd52fee"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: ""
+        value: application/json
+        description: ""
+        disabled: false
+    authentication:
+      type: bearer
+      token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+    scripts:
+      afterResponse: |-
+        insomnia.test("Task created successfully", () => {
+          insomnia.expect([200, 201]).to.include(insomnia.response.code);
+        });
+
+        insomnia.test("Response is valid JSON", () => {
+          JSON.parse(insomnia.response.text());
+        });
+
+        try {
+          const body = insomnia.response.json();
+          const taskId = body.id || (body.data && body.data.id);
+
+          if (taskId) {
+            insomnia.environment.set("task_id", taskId);
+          }
+        } catch (e) {
+          console.log("Could not extract task ID:", e.message);
+        }
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - name: 01. Авторизация
+    meta:
+      id: fld_b14ff68f8d3544d2999297f31442c37c
+      created: 1793458044367
+      modified: 1793459659341
+      sortKey: -1793458044367
+      description: Получение компании и API-ключа; проверка текущего пользователя.
+    children:
+      - url: https://yougile.com/api-v2/auth/companies
+        name: 01 — Получить список компаний
+        meta:
+          id: req_0bd74296ebe245cc8e83ce6992042817
+          created: 1793458044373
+          modified: 1793459080618
+          isPrivate: false
+          description: Заполните login и password в Base Environment. Ожидается список
+            компаний; скопируйте нужный ID в company_id.
+          sortKey: -3262263294
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "login": "essencesimsay@gmail.com",
+              "password": "roma2211aA@"
+            }
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Content-Type
+            value: application/json
+        scripts:
+          afterResponse: |-
+            insomnia.test("HTTP status is 200", () => {
+              insomnia.expect(insomnia.response.code).to.eql(200);
+            });
+
+            insomnia.test("Response is JSON", () => {
+              insomnia.expect(insomnia.response.text()).to.be.a("string");
+
+              JSON.parse(insomnia.response.text());
+            });
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/auth/keys"
+        name: 02 — Создать API-ключ
+        meta:
+          id: req_7158e95ea14144d4b5546b130909a862
+          created: 1793458044373
+          modified: 1793462085332
+          isPrivate: false
+          description: Создаёт API-ключ для выбранной компании. Если
+            документация/фактический ответ вашей версии указывает 200, измените
+            ожидаемый код в скрипте. Скопируйте ключ в переменную token.
+          sortKey: -229404797
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "login": "{{ _.login }}",
+              "password": "{{ _.password }}",
+              "companyId": "{{ _.company_id }}"
+            }
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Content-Type
+            value: application/json
+        scripts:
+          afterResponse: |-
+            insomnia.test("Successful key creation status", () => {
+              insomnia.expect([200, 201]).to.include(insomnia.response.code);
+            });
+
+            insomnia.test("Response is JSON", () => {
+              insomnia.expect(insomnia.response.text()).to.be.a("string");
+              JSON.parse(insomnia.response.text());
+            });
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/users/me"
+        name: 03 — Получить текущего пользователя
+        meta:
+          id: req_89cd8d71960e48f8a4ffeb101ad42df7
+          created: 1793458044374
+          modified: 1793459654627
+          isPrivate: false
+          description: Проверяет, что API-ключ действителен и пользователь распознан.
+          sortKey: -3035647817
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{ _.token }}
+        authentication:
+          type: bearer
+          token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+        scripts:
+          afterResponse: |-
+            insomnia.test("HTTP status is successful", () => {
+              insomnia.expect([200, 201]).to.include(insomnia.response.code);
+            });
+
+            insomnia.test("Response is valid JSON", () => {
+              JSON.parse(insomnia.response.text());
+            });
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 02. Проекты
+    meta:
+      id: fld_e8ee8f4caf4341c3b7825345a8d4921a
+      created: 1793458044368
+      modified: 1793460048057
+      sortKey: -1793458044368
+      description: Чтение и создание проектов.
+    children:
+      - url: "{{ _.base_url }}/projects"
+        name: 02 — Создать тестовый проект
+        meta:
+          id: req_5a1d6b9971ae40bc9ad272b98b4ec9cd
+          created: 1793458044375
+          modified: 1793460004857
+          isPrivate: false
+          description: Создаёт тестовый проект. Заполните user_id ID пользователя с
+            правами администратора. Создание изменяет данные аккаунта;
+            выполняйте только в своей тестовой компании. Если API требует
+            дополнительные поля, уточните их в схеме CreateProjectDto.
+          sortKey: -1979621044
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "title": "QA Diploma Test Project",
+              "users": {
+                "5c7b8907-3488-45a4-a202-08325a2e2b60": "admin"
+              }
+            }
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{ _.token }}
+        authentication:
+          type: bearer
+          token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+        scripts:
+          afterResponse: |-
+            insomnia.test("Project created successfully", () => {
+              insomnia.expect([200, 201]).to.include(insomnia.response.code);
+            });
+
+            insomnia.test("Response is valid JSON", () => {
+              JSON.parse(insomnia.response.text());
+            });
+
+            try {
+              const body = insomnia.response.json();
+              const projectId = body.id || (body.data && body.data.id);
+
+              if (projectId) {
+                insomnia.environment.set("project_id", projectId);
+              }
+            } catch (e) {
+              console.log("Could not extract project ID:", e.message);
+            }
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{ _.base_url }}/projects"
+        name: 01 — Получить список проектов
+        meta:
+          id: req_6ce9734b62e3413c9d0e5e6a6df71cbb
+          created: 1793458044375
+          modified: 1793459792569
+          isPrivate: false
+          description: Получение списка проектов, доступных пользователю.
+          sortKey: -1603898033
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{ _.token }}
+        authentication:
+          type: bearer
+          token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+        scripts:
+          afterResponse: |-
+            insomnia.test("HTTP status is successful", () => {
+              insomnia.expect(insomnia.response.code).to.eql(200);
+            });
+
+            insomnia.test("Response is valid JSON", () => {
+              JSON.parse(insomnia.response.text());
+            });
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 03. Задачи
+    meta:
+      id: fld_9cfe5f3c855d4bcbb7ca9998d21f5e6c
+      created: 1793458044369
+      modified: 1793460934140
+      sortKey: -1793458044369
+      description: Получение списка задач.
+    children:
+      - url: "{{ _.base_url }}/tasks"
+        name: 01 — Получить список задач
+        meta:
+          id: req_3b99202d4fca404d9771a03b691cd679
+          created: 1793458044376
+          modified: 1793460712692
+          isPrivate: false
+          description: Получение списка задач. Фактический состав данных зависит от прав
+            пользователя и параметров API.
+          sortKey: -1660279309
+        method: GET
+        body:
+          mimeType: application/json
+          text: ""
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Accept
+            value: application/json
+          - name: Authorization
+            value: Bearer {{ _.token }}
+        authentication:
+          type: bearer
+          token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+        scripts:
+          afterResponse: |-
+            insomnia.test("HTTP status is 200", () => {
+              insomnia.expect(insomnia.response.code).to.eql(200);
+            });
+
+            insomnia.test("Response is valid JSON", () => {
+              JSON.parse(insomnia.response.text());
+            });
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+  - name: 04. Негативные проверки
+    meta:
+      id: fld_12f19df5ef7340a5be4b42294385a487
+      created: 1793458044371
+      modified: 1793460219218
+      sortKey: -1793458044371
+      description: Проверка отказа в доступе при невалидном токене.
+    children:
+      - url: "{{ _.base_url }}/users/me"
+        name: 01 — Запрос с невалидным токеном
+        meta:
+          id: req_5ef93f3e3e7747db8b47af3b2eecd40b
+          created: 1793458044377
+          modified: 1793460218917
+          isPrivate: false
+          description: Негативная проверка. Ожидается отказ в авторизации (4xx). Если API
+            возвращает другой код 4xx, скорректируйте проверку по фактической
+            спецификации.
+          sortKey: -523782744
+        method: GET
+        headers:
+          - name: Accept
+            value: application/json
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer invalid_test_token
+        authentication:
+          type: bearer
+          token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+        scripts:
+          afterResponse: |-
+            insomnia.test("Invalid token is rejected", () => {
+              insomnia.expect(insomnia.response.code).to.be.within(400, 499);
+            });
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_3bc8c1a052dc46b2cd5c74f061da60bcc0919de3
+    created: 1793458044585
+    modified: 1793460934135
+  cookies:
+    - id: 908c529e-e754-4ac5-abe8-667ac2ad4749
+      key: spid
+      value: 1793458421056_7a60504a4832f7de99201cebe5cfbbe1_k0x2hckk9stpbgam
+      domain: yougile.com
+      path: /
+      secure: true
+      httpOnly: false
+environments:
+  name: Base Environment
+  meta:
+    id: env_cb78796c8382402fa22878481b904666
+    created: 1793458044366
+    modified: 1793460934139
+    isPrivate: false
+  data:
+    base_url: https://yougile.com/api-v2
+    login: essencesimsay@gmail.com
+    password: roma2211aA@
+    company_id: e2cba69c-bf0e-482f-a01b-a9bde6f5cf80
+    token: Qzdl_JcxzpTzyn-sTei74vNBrMKj7IYBt8i8Ls6iQoOgNiwDSGJRTi7gBob0sc7h
+    user_id: ""
+    project_id: 8d264406-ff1d-41e1-a761-75f37813e9d9
+    task_id: d7199d27-4cc9-40d9-963e-1796231d84a6
